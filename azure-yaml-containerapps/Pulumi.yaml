@@ -113,6 +113,8 @@ resources:
         containers:
           - name: "myapp"
             image: ${myImage.ref}
+  stacksettings:
+    type: stackmgmt:StackSettings
 
 outputs:
   endpoint: https://${containerapp.configuration.ingress.fqdn}
