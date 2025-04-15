@@ -3,7 +3,7 @@ from pulumi_azure_native import containerregistry
 from pulumi_azure_native import operationalinsights
 from pulumi_azure_native import resources
 from pulumi_azure_native import app
-import pulumi_dockerbuild as docker_build
+import pulumi_docker_build as docker_build
 
 # Pulumi component
 from pulumi_pequod_stackmgmt import StackSettings, StackSettingsArgs
