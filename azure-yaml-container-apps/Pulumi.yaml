@@ -1,0 +1,127 @@
+name: ${PROJECT}
+description: ${DESCRIPTION}
+runtime: yaml
+packages:
+  stackmgmt: https://github.com/pulumi-pequod/component-stackmgmt@v0.1.7
+template:
+  description: Pulumi YAML project that deploys an application using the container-services component.
+  config:
+    insightsSku:
+      description: Operational Insights SKU (e.g. Free, Standard, Premisum, PerNode, PerGB2018)
+      default: PerGB2018
+    appIngressPort:
+      description: Inbound TCP port for the container app.
+      default: 80
+    platform:
+      description: OS/architecture for the container app.
+      default: linux/amd64
+
+  
+variables:
+  sharedKey:
+    fn::invoke:
+      function: azure-native:operationalinsights:getSharedKeys
+      arguments:
+        resourceGroupName: ${resourceGroup.name}
+        workspaceName: ${workspace.name}
+      return: primarySharedKey
+  registryUsername:
+    fn::invoke:
+      function: azure-native:containerregistry:listRegistryCredentials
+      arguments:
+        resourceGroupName: ${resourceGroup.name}
+        registryName: ${registry.name}
+      return: username
+  registryPasswords:
+    fn::invoke:
+      function: azure-native:containerregistry:listRegistryCredentials
+      arguments:
+        resourceGroupName: ${resourceGroup.name}
+        registryName: ${registry.name}
+      return: passwords
+  appPath: app
+  imageName: ${appPath}
+  imageTag: latest
+
+resources:
+  resourceGroup:
+    type: azure-native:resources:ResourceGroup
+  workspace:
+    type: azure-native:operationalinsights:Workspace
+    properties:
+      resourceGroupName: ${resourceGroup.name}
+      sku:
+        name: ${insightsSku}
+      retentionInDays: 30
+  managedEnv:
+    type: azure-native:app:ManagedEnvironment
+    properties:
+      resourceGroupName: ${resourceGroup.name}
+      appLogsConfiguration:
+        destination: "log-analytics"
+        logAnalyticsConfiguration:
+          customerId: ${workspace.customerId}
+          sharedKey: ${sharedKey}
+  registry:
+    type: azure-native:containerregistry:Registry
+    properties:
+      resourceGroupName: ${resourceGroup.name}
+      sku:
+        name: "Basic"
+      adminUserEnabled: true
+  provider:
+    type: pulumi:providers:docker
+    properties:
+      registryAuth:
+        - address: ${registry.loginServer}
+          username: ${registryUsername}
+          password: ${registryPasswords[0].value}
+  myImage:
+    type: docker-build:Image
+    properties:
+      context:
+        location: ${appPath}
+      push: true
+      exec: true
+      tags:
+        - ${registry.loginServer}/${imageName}:${imageTag}
+      platforms:
+        - ${platform}
+      registries:
+        - address: ${registry.loginServer}
+          username: ${registryUsername}
+          password: ${registryPasswords[0].value}
+  containerapp:
+    type: azure-native:app:ContainerApp
+    properties:
+      resourceGroupName: ${resourceGroup.name}
+      managedEnvironmentId: ${managedEnv.id}
+      configuration:
+        ingress:
+            external: true
+            targetPort: ${appIngressPort}
+        registries:
+          - server: ${registry.loginServer}
+            username: ${registryUsername}
+            passwordSecretRef: "pwd"
+        secrets:
+          - name: "pwd"
+            value: ${registryPasswords[0].value}
+      template:
+        containers:
+          - name: "myapp"
+            image: ${myImage.ref}
+
+outputs:
+  endpoint: https://${containerapp.configuration.ingress.fqdn}
+
+config:
+  insightsSku:
+    type: string
+    default: PerGB2018
+  appIngressPort:
+    type: integer
+    default: 80
+  platform:
+    type: string
+    default: linux/amd64
