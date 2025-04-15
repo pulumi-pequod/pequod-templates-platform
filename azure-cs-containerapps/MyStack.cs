@@ -8,118 +8,155 @@ using Pulumi.AzureNative.OperationalInsights.Inputs;
 using Pulumi.AzureNative.Resources;
 using Pulumi.AzureNative.App;
 using Pulumi.AzureNative.App.Inputs;
-using Pulumi.Docker;
+using DockerBuild = Pulumi.DockerBuild;
 using ContainerArgs = Pulumi.AzureNative.App.Inputs.ContainerArgs;
 using SecretArgs = Pulumi.AzureNative.App.Inputs.SecretArgs;
+
+using Stackmgmt = Pequod.Stackmgmt;
 
 class MyStack : Stack
 {
     public MyStack()
     {
-        var resourceGroup = new ResourceGroup("rg");
-        
-        var workspace = new Workspace("loganalytics", new WorkspaceArgs
+        var config = new Config();
+        var insightsSku = config.Get("insightsSku") ?? "PerGB2018";
+        var appIngressPort = config.GetInt32("appIngressPort") ?? 80;
+        var platform = config.Get("platform") ?? "linux/amd64";
+        var pulumiTags = config.Require("pulumi:tags");
+        var resourceGroup = new AzureNative.Resources.ResourceGroup("resourceGroup");
+
+        var workspace = new AzureNative.OperationalInsights.Workspace("workspace", new()
         {
             ResourceGroupName = resourceGroup.Name,
-            Sku = new WorkspaceSkuArgs { Name = "PerGB2018" },
+            Sku = new AzureNative.OperationalInsights.Inputs.WorkspaceSkuArgs
+            {
+                Name = insightsSku,
+            },
             RetentionInDays = 30,
         });
-        
-        var workspaceSharedKeys = Output.Tuple(resourceGroup.Name, workspace.Name).Apply(items =>
-            GetSharedKeys.InvokeAsync(new GetSharedKeysArgs
-            {
-                ResourceGroupName = items.Item1,
-                WorkspaceName = items.Item2,
-            }));
-        
-        var managedEnv = new ManagedEnvironment("env", new ManagedEnvironmentArgs
+
+        var sharedKey = AzureNative.OperationalInsights.GetSharedKeys.Invoke(new()
         {
             ResourceGroupName = resourceGroup.Name,
-            AppLogsConfiguration = new AppLogsConfigurationArgs
+            WorkspaceName = workspace.Name,
+        }).Apply(invoke => invoke.PrimarySharedKey);
+
+        var registry = new AzureNative.ContainerRegistry.Registry("registry", new()
+        {
+            ResourceGroupName = resourceGroup.Name,
+            Sku = new AzureNative.ContainerRegistry.Inputs.SkuArgs
+            {
+                Name = AzureNative.ContainerRegistry.SkuName.Basic,
+            },
+            AdminUserEnabled = true,
+        });
+
+        var registryUsername = AzureNative.ContainerRegistry.ListRegistryCredentials.Invoke(new()
+        {
+            ResourceGroupName = resourceGroup.Name,
+            RegistryName = registry.Name,
+        }).Apply(invoke => invoke.Username);
+
+        var registryPasswords = AzureNative.ContainerRegistry.ListRegistryCredentials.Invoke(new()
+        {
+            ResourceGroupName = resourceGroup.Name,
+            RegistryName = registry.Name,
+        }).Apply(invoke => invoke.Passwords);
+
+        var appPath = "app";
+
+        var imageName = appPath;
+
+        var imageTag = "latest";
+
+        var managedEnv = new AzureNative.App.ManagedEnvironment("managedEnv", new()
+        {
+            ResourceGroupName = resourceGroup.Name,
+            AppLogsConfiguration = new AzureNative.App.Inputs.AppLogsConfigurationArgs
             {
                 Destination = "log-analytics",
-                LogAnalyticsConfiguration = new LogAnalyticsConfigurationArgs
+                LogAnalyticsConfiguration = new AzureNative.App.Inputs.LogAnalyticsConfigurationArgs
                 {
                     CustomerId = workspace.CustomerId,
-                    SharedKey = workspaceSharedKeys.Apply(r => r.PrimarySharedKey)
-                }
-            }
+                    SharedKey = sharedKey,
+                },
+            },
         });
-        
-        var registry = new Registry("registry", new RegistryArgs
-        {
-            ResourceGroupName = resourceGroup.Name,
-            Sku = new SkuArgs { Name = "Basic" },
-            AdminUserEnabled = true
-        });
-        
-        var credentials = Output.Tuple(resourceGroup.Name, registry.Name).Apply(items =>
-            ListRegistryCredentials.InvokeAsync(new ListRegistryCredentialsArgs
-            {
-                ResourceGroupName = items.Item1,
-                RegistryName = items.Item2
-            }));
-        var adminUsername = credentials.Apply(credentials => credentials.Username);
-        var adminPassword = credentials.Apply(credentials => credentials.Passwords[0].Value);
 
-        var customImage = "node-app";
-        var myImage = new Image(customImage, new ImageArgs
+        var myImage = new DockerBuild.Image("myImage", new()
         {
-            ImageName = Output.Format($"{registry.LoginServer}/{customImage}:v1.0.0"),
-            Build = new DockerBuild { Context = $"./{customImage}" },
-            Registry = new ImageRegistry
+            Context = new DockerBuild.Inputs.BuildContextArgs
             {
-                Server = registry.LoginServer,
-                Username = adminUsername,
-                Password = adminPassword
-            }
+                Location = appPath,
+            },
+            Push = true,
+            Exec = true,
+            Tags = new[]
+            {
+                registry.LoginServer.Apply(loginServer => $"{loginServer}/{imageName}:{imageTag}"),
+            },
+            Platforms = new[]
+            {
+                System.Enum.Parse<DockerBuild.Platform>(platform),
+            },
+            Registries = new[]
+            {
+                new DockerBuild.Inputs.RegistryArgs
+                {
+                    Address = registry.LoginServer,
+                    Username = registryUsername,
+                    Password = registryPasswords[0]?.Value,
+                },
+            },
         });
-        
-        var containerApp = new ContainerApp("app", new ContainerAppArgs
+
+        var containerapp = new AzureNative.App.ContainerApp("containerapp", new()
         {
             ResourceGroupName = resourceGroup.Name,
             ManagedEnvironmentId = managedEnv.Id,
-            Configuration = new ConfigurationArgs
+            Configuration = new AzureNative.App.Inputs.ConfigurationArgs
             {
-                Ingress = new IngressArgs
+                Ingress = new AzureNative.App.Inputs.IngressArgs
                 {
                     External = true,
-                    TargetPort = 80
+                    TargetPort = appIngressPort,
                 },
-                Registries =
+                Registries = new[]
                 {
-                    new RegistryCredentialsArgs
+                    new AzureNative.App.Inputs.RegistryCredentialsArgs
                     {
                         Server = registry.LoginServer,
-                        Username = adminUsername,
+                        Username = registryUsername,
                         PasswordSecretRef = "pwd",
-                    }
+                    },
                 },
-                Secrets = 
+                Secrets = new[]
                 {
-                    new SecretArgs
+                    new AzureNative.App.Inputs.SecretArgs
                     {
                         Name = "pwd",
-                        Value = adminPassword
-                    }
+                        Value = registryPasswords[0]?.Value,
+                    },
                 },
             },
-            Template = new TemplateArgs
+            Template = new AzureNative.App.Inputs.TemplateArgs
             {
-                Containers = 
+                Containers = new[]
                 {
-                    new ContainerArgs
+                    new AzureNative.App.Inputs.ContainerArgs
                     {
                         Name = "myapp",
-                        Image = myImage.ImageName,
-                    }
-                }
-            }
+                        Image = myImage.Ref,
+                    },
+                },
+            },
         });
 
-        this.Url = Output.Format($"https://{containerApp.Configuration.Apply(c => c.Ingress).Apply(i => i.Fqdn)}");
+        var stacksettings = new Stackmgmt.StackSettings("stacksettings");
+
+        this.Endpoint = containerapp.Configuration.Apply(configuration => $"https://{configuration?.Ingress?.Fqdn}"),
     }
 
-    [Output("url")]
-    public Output<string> Url { get; set; }
+    [Output("endpoint")]
+    public Output<string> Endpoint { get; set; }
 }
