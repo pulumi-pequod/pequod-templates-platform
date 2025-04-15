@@ -71,13 +71,13 @@ resources:
       sku:
         name: "Basic"
       adminUserEnabled: true
-  provider:
-    type: pulumi:providers:docker
-    properties:
-      registryAuth:
-        - address: ${registry.loginServer}
-          username: ${registryUsername}
-          password: ${registryPasswords[0].value}
+  # provider:
+  #   type: pulumi:providers:docker
+  #   properties:
+  #     registryAuth:
+  #       - address: ${registry.loginServer}
+  #         username: ${registryUsername}
+  #         password: ${registryPasswords[0].value}
   myImage:
     type: docker-build:Image
     properties:

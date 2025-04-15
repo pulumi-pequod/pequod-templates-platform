@@ -1,5 +1,3 @@
-# Copyright 2016-2021, Pulumi Corporation.  All rights reserved.
-
 import pulumi
 from pulumi_azure_native import containerregistry
 from pulumi_azure_native import operationalinsights
@@ -7,12 +5,15 @@ from pulumi_azure_native import resources
 from pulumi_azure_native import app
 import pulumi_docker as docker
 
+# Get stack config
+import config
+
 resource_group = resources.ResourceGroup("rg")
 
 workspace = operationalinsights.Workspace(
     "loganalytics",
     resource_group_name=resource_group.name,
-    sku=operationalinsights.WorkspaceSkuArgs(name="PerGB2018"),
+    sku=operationalinsights.WorkspaceSkuArgs(name=config.insights_sku),
     retention_in_days=30,
 )
 
@@ -66,7 +67,7 @@ container_app = app.ContainerApp(
     resource_group_name=resource_group.name,
     managed_environment_id=managed_env.id,
     configuration=app.ConfigurationArgs(
-        ingress=app.IngressArgs(external=True, target_port=80),
+        ingress=app.IngressArgs(external=True, target_port=config.app_ingress_port),
         registries=[
             app.RegistryCredentialsArgs(
                 server=registry.login_server,
