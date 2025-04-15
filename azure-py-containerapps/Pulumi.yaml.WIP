@@ -3,4 +3,4 @@ runtime:
   name: python
   options:
     virtualenv: venv
-description: Creates an Azure Container App and deploys a custom Docker image to it
+description: Python program that creates an Azure Container App and deploys a custom Docker image to it.
