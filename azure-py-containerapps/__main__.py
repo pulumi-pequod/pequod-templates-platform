@@ -3,10 +3,16 @@ from pulumi_azure_native import containerregistry
 from pulumi_azure_native import operationalinsights
 from pulumi_azure_native import resources
 from pulumi_azure_native import app
-import pulumi_docker as docker
+import pulumi_dockerbuild as docker_build
+
+# Pulumi component
+from pulumi_pequod_stackmgmt import StackSettings, StackSettingsArgs
 
 # Get stack config
 import config
+app_path = "app"
+image_name = app_path
+image_tag = "latest"
 
 resource_group = resources.ResourceGroup("rg")
 
@@ -47,42 +53,48 @@ credentials = pulumi.Output.all(resource_group.name, registry.name).apply(
         resource_group_name=args[0], registry_name=args[1]
     )
 )
-admin_username = credentials.username
-admin_password = credentials.passwords[0]["value"]
+registry_username = credentials.username
+registry_password = credentials.passwords[0]["value"]
 
-custom_image = "node-app"
-my_image = docker.Image(
-    custom_image,
-    image_name=registry.login_server.apply(
-        lambda login_server: f"{login_server}/{custom_image}:v1.0.0"
-    ),
-    build=docker.DockerBuildArgs(context=f"./{custom_image}"),
-    registry=docker.RegistryArgs(
-        server=registry.login_server, username=admin_username, password=admin_password
-    ),
-)
+my_image = docker_build.Image("myImage",
+    context={
+        "location": app_path,
+    },
+    push=True,
+    exec_=True,
+    tags=[registry.login_server.apply(lambda login_server: f"{login_server}/{image_name}:{image_tag}")],
+    platforms=[docker_build.Platform(config.platform)],
+    registries=[{
+        "address": registry.login_server,
+        "username": registry_username,
+        "password": registry_password,
+    }])
 
-container_app = app.ContainerApp(
-    "app",
+containerapp = app.ContainerApp("containerapp",
     resource_group_name=resource_group.name,
     managed_environment_id=managed_env.id,
-    configuration=app.ConfigurationArgs(
-        ingress=app.IngressArgs(external=True, target_port=config.app_ingress_port),
-        registries=[
-            app.RegistryCredentialsArgs(
-                server=registry.login_server,
-                username=admin_username,
-                password_secret_ref="pwd",
-            )
-        ],
-        secrets=[app.SecretArgs(name="pwd", value=admin_password)],
-    ),
-    template=app.TemplateArgs(
-        containers=[app.ContainerArgs(name="myapp", image=my_image.image_name)]
-    ),
-)
+    configuration={
+        "ingress": {
+            "external": True,
+            "target_port": config.app_ingress_port,
+        },
+        "registries": [{
+            "server": registry.login_server,
+            "username": registry_username,
+            "password_secret_ref": "pwd",
+        }],
+        "secrets": [{
+            "name": "pwd",
+            "value": registry_password
+        }],
+    },
+    template={
+        "containers": [{
+            "name": "myapp",
+            "image": my_image.ref,
+        }],
+    })
 
-pulumi.export(
-    "url",
-    container_app.configuration.apply(lambda c: c.ingress).apply(lambda i: i.fqdn),
-)
+stacksettings = StackSettings("stacksettings")
+
+pulumi.export("endpoint", containerapp.configuration.apply(lambda configuration: f"https://{configuration.ingress.fqdn}"))
