@@ -1,6 +1,5 @@
-// Copyright 2016-2025, Pulumi Corporation.  All rights reserved.
-
 using Pulumi;
+using Pulumi.AzureNative;
 using Pulumi.AzureNative.ContainerRegistry;
 using Pulumi.AzureNative.ContainerRegistry.Inputs;
 using Pulumi.AzureNative.OperationalInsights;
@@ -12,56 +11,56 @@ using DockerBuild = Pulumi.DockerBuild;
 using ContainerArgs = Pulumi.AzureNative.App.Inputs.ContainerArgs;
 using SecretArgs = Pulumi.AzureNative.App.Inputs.SecretArgs;
 
-using Stackmgmt = Pequod.Stackmgmt;
+using PulumiPequod.Stackmgmt;
 
 class MyStack : Stack
 {
     public MyStack()
     {
-        var config = new Config();
+        var config = new Pulumi.Config();
         var insightsSku = config.Get("insightsSku") ?? "PerGB2018";
         var appIngressPort = config.GetInt32("appIngressPort") ?? 80;
         var platform = config.Get("platform") ?? "linux/amd64";
-        var pulumiTags = config.Require("pulumi:tags");
-        var resourceGroup = new AzureNative.Resources.ResourceGroup("resourceGroup");
 
-        var workspace = new AzureNative.OperationalInsights.Workspace("workspace", new()
+        var resourceGroup = new ResourceGroup("resourceGroup");
+
+        var workspace = new Workspace("workspace", new()
         {
             ResourceGroupName = resourceGroup.Name,
-            Sku = new AzureNative.OperationalInsights.Inputs.WorkspaceSkuArgs
+            Sku = new WorkspaceSkuArgs
             {
                 Name = insightsSku,
             },
             RetentionInDays = 30,
         });
 
-        var sharedKey = AzureNative.OperationalInsights.GetSharedKeys.Invoke(new()
+        var sharedKey = GetSharedKeys.Invoke(new()
         {
             ResourceGroupName = resourceGroup.Name,
             WorkspaceName = workspace.Name,
         }).Apply(invoke => invoke.PrimarySharedKey);
 
-        var registry = new AzureNative.ContainerRegistry.Registry("registry", new()
+        var registry = new Registry("registry", new()
         {
             ResourceGroupName = resourceGroup.Name,
-            Sku = new AzureNative.ContainerRegistry.Inputs.SkuArgs
+            Sku = new SkuArgs
             {
-                Name = AzureNative.ContainerRegistry.SkuName.Basic,
+                Name = "Basic"
             },
             AdminUserEnabled = true,
         });
 
-        var registryUsername = AzureNative.ContainerRegistry.ListRegistryCredentials.Invoke(new()
+        var registryUsername = ListRegistryCredentials.Invoke(new()
         {
             ResourceGroupName = resourceGroup.Name,
             RegistryName = registry.Name,
         }).Apply(invoke => invoke.Username);
 
-        var registryPasswords = AzureNative.ContainerRegistry.ListRegistryCredentials.Invoke(new()
+        var registryPassword = ListRegistryCredentials.Invoke(new()
         {
             ResourceGroupName = resourceGroup.Name,
             RegistryName = registry.Name,
-        }).Apply(invoke => invoke.Passwords);
+        }).Apply(invoke => invoke.Passwords[0].Value);
 
         var appPath = "app";
 
@@ -69,13 +68,13 @@ class MyStack : Stack
 
         var imageTag = "latest";
 
-        var managedEnv = new AzureNative.App.ManagedEnvironment("managedEnv", new()
+        var managedEnv = new ManagedEnvironment("managedEnv", new()
         {
             ResourceGroupName = resourceGroup.Name,
-            AppLogsConfiguration = new AzureNative.App.Inputs.AppLogsConfigurationArgs
+            AppLogsConfiguration = new AppLogsConfigurationArgs
             {
                 Destination = "log-analytics",
-                LogAnalyticsConfiguration = new AzureNative.App.Inputs.LogAnalyticsConfigurationArgs
+                LogAnalyticsConfiguration = new LogAnalyticsConfigurationArgs
                 {
                     CustomerId = workspace.CustomerId,
                     SharedKey = sharedKey,
@@ -95,35 +94,35 @@ class MyStack : Stack
             {
                 registry.LoginServer.Apply(loginServer => $"{loginServer}/{imageName}:{imageTag}"),
             },
-            Platforms = new[]
-            {
-                System.Enum.Parse<DockerBuild.Platform>(platform),
-            },
+            // Platforms = new []
+            // {
+            //     // System.Enum.Parse<DockerBuild.Platform>(platform),
+            // },
             Registries = new[]
             {
                 new DockerBuild.Inputs.RegistryArgs
                 {
                     Address = registry.LoginServer,
                     Username = registryUsername,
-                    Password = registryPasswords[0]?.Value,
+                    Password = registryPassword,
                 },
             },
         });
 
-        var containerapp = new AzureNative.App.ContainerApp("containerapp", new()
+        var containerapp = new ContainerApp("containerapp", new()
         {
             ResourceGroupName = resourceGroup.Name,
             ManagedEnvironmentId = managedEnv.Id,
-            Configuration = new AzureNative.App.Inputs.ConfigurationArgs
+            Configuration = new ConfigurationArgs
             {
-                Ingress = new AzureNative.App.Inputs.IngressArgs
+                Ingress = new IngressArgs
                 {
                     External = true,
                     TargetPort = appIngressPort,
                 },
                 Registries = new[]
                 {
-                    new AzureNative.App.Inputs.RegistryCredentialsArgs
+                    new RegistryCredentialsArgs
                     {
                         Server = registry.LoginServer,
                         Username = registryUsername,
@@ -132,18 +131,18 @@ class MyStack : Stack
                 },
                 Secrets = new[]
                 {
-                    new AzureNative.App.Inputs.SecretArgs
+                    new SecretArgs
                     {
                         Name = "pwd",
-                        Value = registryPasswords[0]?.Value,
+                        Value = registryPassword
                     },
                 },
             },
-            Template = new AzureNative.App.Inputs.TemplateArgs
+            Template = new TemplateArgs
             {
                 Containers = new[]
                 {
-                    new AzureNative.App.Inputs.ContainerArgs
+                    new ContainerArgs
                     {
                         Name = "myapp",
                         Image = myImage.Ref,
@@ -152,9 +151,9 @@ class MyStack : Stack
             },
         });
 
-        var stacksettings = new Stackmgmt.StackSettings("stacksettings");
+        var stacksettings = new StackSettings("stacksettings");
 
-        this.Endpoint = containerapp.Configuration.Apply(configuration => $"https://{configuration?.Ingress?.Fqdn}"),
+        this.Endpoint = containerapp.Configuration.Apply(configuration => $"https://{configuration?.Ingress?.Fqdn}");
     }
 
     [Output("endpoint")]
