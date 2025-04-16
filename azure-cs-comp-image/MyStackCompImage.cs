@@ -1,21 +1,19 @@
 using Pulumi;
 using Pulumi.AzureNative;
-using Pulumi.AzureNative.ContainerRegistry;
-using Pulumi.AzureNative.ContainerRegistry.Inputs;
 using Pulumi.AzureNative.OperationalInsights;
 using Pulumi.AzureNative.OperationalInsights.Inputs;
 using Pulumi.AzureNative.Resources;
 using Pulumi.AzureNative.App;
 using Pulumi.AzureNative.App.Inputs;
-using DockerBuild = Pulumi.DockerBuild;
 using ContainerArgs = Pulumi.AzureNative.App.Inputs.ContainerArgs;
 using SecretArgs = Pulumi.AzureNative.App.Inputs.SecretArgs;
 
 using PulumiPequod.Stackmgmt;
+using PulumiPequod.Containerapps;
 
-class MyStack : Stack
+class MyStackCompImage : Stack
 {
-    public MyStack()
+    public MyStackCompImage()
     {
         var config = new Pulumi.Config();
         var insightsSku = config.Get("insightsSku") ?? "PerGB2018";
@@ -23,6 +21,13 @@ class MyStack : Stack
         var platform = config.Get("platform") ?? "linux/amd64";
 
         var resourceGroup = new ResourceGroup("resourceGroup");
+
+        var appImage = new AppImage("appimage", new AppImageArgs 
+        {
+            ResourceGroupName = resourceGroup.Name,
+            AppPath = "./app",
+            Platform = platform,
+        });
 
         var workspace = new Workspace("workspace", new()
         {
@@ -40,17 +45,20 @@ class MyStack : Stack
             WorkspaceName = workspace.Name,
         }).Apply(invoke => invoke.PrimarySharedKey);
 
-        var registry = new Registry("registry", new()
+
+        var managedEnv = new ManagedEnvironment("managedEnv", new()
         {
             ResourceGroupName = resourceGroup.Name,
-            Sku = new SkuArgs
+            AppLogsConfiguration = new AppLogsConfigurationArgs
             {
-                Name = "Basic"
+                Destination = "log-analytics",
+                LogAnalyticsConfiguration = new LogAnalyticsConfigurationArgs
+                {
+                    CustomerId = workspace.CustomerId,
+                    SharedKey = sharedKey,
+                },
             },
-            AdminUserEnabled = true,
         });
-
-
 
         var containerapp = new ContainerApp("containerapp", new()
         {
@@ -67,8 +75,8 @@ class MyStack : Stack
                 {
                     new RegistryCredentialsArgs
                     {
-                        Server = registry.LoginServer,
-                        Username = registryUsername,
+                        Server = appImage.RegistryLoginServer,
+                        Username = appImage.RegistryUsername,
                         PasswordSecretRef = "pwd",
                     },
                 },
@@ -77,7 +85,7 @@ class MyStack : Stack
                     new SecretArgs
                     {
                         Name = "pwd",
-                        Value = registryPassword
+                        Value = appImage.RegistryPassword
                     },
                 },
             },
@@ -88,7 +96,7 @@ class MyStack : Stack
                     new ContainerArgs
                     {
                         Name = "myapp",
-                        Image = myImage.Ref,
+                        Image = appImage.ImageRef,
                     },
                 },
             },

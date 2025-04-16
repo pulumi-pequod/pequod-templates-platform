@@ -3,7 +3,7 @@ description: ${DESCRIPTION}
 runtime: dotnet
 packages:
   stackmgmt: https://github.com/pulumi-pequod/component-stackmgmt@v0.1.7
-  appImage: https://github.com/pulumi-pequod/pequod-templates-platform/component-containerapps@v0.0.1
+  appImage: https://github.com/pulumi-pequod/pequod-templates-platform/component-containerapps@v1.0.0
 template:
   description: C# program that leverages Components to create an Azure Container App and deploys a custom Docker image to it.
   config:
