@@ -16,16 +16,16 @@ class AppImageArgs(TypedDict):
 
 class AppImage(pulumi.ComponentResource):
     """
-    Creates Google Cloud K8s cluster.
+    Builds Docker image and pushes it to Azure container registry
     """
-    cluster_name: pulumi.Output[str]
-    """
-    Name of the Google Cloud cluster.
-    """
-    kubeconfig: pulumi.Output[str]
-    """
-    kubeconfig for accessing the cluster.
-    """
+    registry_login_server: pulumi.Output[str]
+    """Container registry login server."""
+    registry_username: pulumi.Output[str] 
+    """Login for container registry."""
+    registry_password: pulumi.Output[str]
+    """Password for container registry login."""
+    image_ref: pulumi.Output[str]
+    """Reference for the image in the container registry."""
 
     def __init__(
             self,
