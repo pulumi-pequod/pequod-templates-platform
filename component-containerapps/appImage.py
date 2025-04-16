@@ -60,7 +60,7 @@ class AppImage(pulumi.ComponentResource):
         self.registry_password = credentials.passwords[0]["value"]
 
 
-        image = docker_build.Image(f"{name}-myImage",
+        image = docker_build.Image(f"{name}-image",
             context={
                 "location": app_path,
             },

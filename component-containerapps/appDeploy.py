@@ -45,7 +45,7 @@ class AppDeploy(pulumi.ComponentResource):
         app_ingress_port = args.get("app_ingress_port") or 80
 
         workspace = operationalinsights.Workspace(
-            "loganalytics",
+            f"{name}-loganalytics",
             resource_group_name=resource_group_name,
             sku=operationalinsights.WorkspaceSkuArgs(name=insights_sku),
             retention_in_days=30,
@@ -59,7 +59,7 @@ class AppDeploy(pulumi.ComponentResource):
         )
 
         managed_env = app.ManagedEnvironment(
-            "env",
+            f"{name}-managedenv",
             resource_group_name=resource_group_name,
             app_logs_configuration=app.AppLogsConfigurationArgs(
                 destination="log-analytics",
@@ -71,7 +71,7 @@ class AppDeploy(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self)
         )
 
-        containerapp = app.ContainerApp("containerapp",
+        containerapp = app.ContainerApp(f"{name}-containerapp",
             resource_group_name=resource_group_name,
             managed_environment_id=managed_env.id,
             configuration={
