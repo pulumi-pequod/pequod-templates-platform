@@ -1,7 +1,7 @@
 import pulumi
 from typing import Optional, TypedDict
-from appImage import AppImage
-from appDeploy import AppDeploy
+from appImage import AppImage, AppImageArgs
+from appDeploy import AppDeploy, AppDeployArgs
 
 class AppBuildDeployArgs(TypedDict):
 
@@ -36,20 +36,20 @@ class AppBuildDeploy(pulumi.ComponentResource):
         image_name = image_tag.split("/")[-1]
         platform = args.get("platform") or "linux/amd64"
 
-        image = AppImage(name,
+        image = AppImage(name, AppImageArgs(
             resource_group_name=resource_group_name,
             app_path=app_path,
             image_tag=image_tag,
-            platform=platform,
+            platform=platform),
             opts=pulumi.ResourceOptions(parent=self)
         )
 
-        deployment = AppDeploy(name, 
+        deployment = AppDeploy(name, AppDeployArgs(
             resource_group_name=resource_group_name,
             registry_login_server=image.registry_login_server,
             registry_username=image.registry_username,
             registry_password=image.registry_password,
-            image_ref=image.image_ref,
+            image_ref=image.image_ref),
             opts=pulumi.ResourceOptions(parent=self)
         )
 
