@@ -8,5 +8,5 @@ A set of templates that can be launched to tell a story about developer experien
 * component-*: abstractions to capture best practices
   * There is a policy that fires if resources are created outside approved components.
   * These components could be added.
-* azure-cs(|yaml?)-comp-containerapp: Uses the component(s) 
-  * Cleaner code
+* azure-cs(|yaml?)-comp-(image|deploy): Uses the component(s) 
+  * Variations that use the different components (e.g. AppImage, AppDeploy, AppImageDeploy)

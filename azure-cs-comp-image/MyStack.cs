@@ -50,64 +50,7 @@ class MyStack : Stack
             AdminUserEnabled = true,
         });
 
-        var registryUsername = ListRegistryCredentials.Invoke(new()
-        {
-            ResourceGroupName = resourceGroup.Name,
-            RegistryName = registry.Name,
-        }).Apply(invoke => invoke.Username);
 
-        var registryPassword = ListRegistryCredentials.Invoke(new()
-        {
-            ResourceGroupName = resourceGroup.Name,
-            RegistryName = registry.Name,
-        }).Apply(invoke => invoke.Passwords[0].Value);
-
-        var appPath = "app";
-
-        var imageName = appPath;
-
-        var imageTag = "latest";
-
-        var managedEnv = new ManagedEnvironment("managedEnv", new()
-        {
-            ResourceGroupName = resourceGroup.Name,
-            AppLogsConfiguration = new AppLogsConfigurationArgs
-            {
-                Destination = "log-analytics",
-                LogAnalyticsConfiguration = new LogAnalyticsConfigurationArgs
-                {
-                    CustomerId = workspace.CustomerId,
-                    SharedKey = sharedKey,
-                },
-            },
-        });
-
-        var myImage = new DockerBuild.Image("myImage", new()
-        {
-            Context = new DockerBuild.Inputs.BuildContextArgs
-            {
-                Location = appPath,
-            },
-            Push = true,
-            Exec = true,
-            Tags = new[]
-            {
-                registry.LoginServer.Apply(loginServer => $"{loginServer}/{imageName}:{imageTag}"),
-            },
-            // Platforms = new []
-            // {
-            //     // System.Enum.Parse<DockerBuild.Platform>(platform),
-            // },
-            Registries = new[]
-            {
-                new DockerBuild.Inputs.RegistryArgs
-                {
-                    Address = registry.LoginServer,
-                    Username = registryUsername,
-                    Password = registryPassword,
-                },
-            },
-        });
 
         var containerapp = new ContainerApp("containerapp", new()
         {
