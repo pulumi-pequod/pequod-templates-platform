@@ -11,7 +11,7 @@ class AppImageArgs(TypedDict):
     """Path to the Dockerfile to build the app"""
     image_tag: Optional[pulumi.Input[str]] 
     """Optionally provided image tag to use. Default: latest"""
-    platform: pulumi.Input[int]
+    platform: pulumi.Input[str]
     """The platform (e.g. linux/amd64) for the image."""
 
 class AppImage(pulumi.ComponentResource):
