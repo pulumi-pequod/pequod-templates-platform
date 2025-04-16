@@ -24,8 +24,8 @@ class AppDeploy(pulumi.ComponentResource):
     """
     Deploys image to Azure container app.
     """
-
     container_app_fqdn: pulumi.Output[str]
+    """Fully qualified domain name of the container app."""
 
     def __init__(
             self,
