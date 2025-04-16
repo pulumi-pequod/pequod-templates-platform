@@ -1,0 +1,75 @@
+import pulumi
+from pulumi_azure_native import containerregistry
+import pulumi_docker_build as docker_build
+from typing import Optional, TypedDict
+
+class AppImageArgs(TypedDict):
+
+    resource_group_name: pulumi.Input[str] 
+    """The resource group in which the image registry should be deployed."""
+    app_path: pulumi.Input[str]
+    """Path to the Dockerfile to build the app"""
+    image_tag: Optional[pulumi.Input[str]] 
+    """Optionally provided image tag to use. Default: latest"""
+    platform: pulumi.Input[int]
+    """The platform (e.g. linux/amd64) for the image."""
+
+class AppImage(pulumi.ComponentResource):
+    """
+    Creates Google Cloud K8s cluster.
+    """
+    cluster_name: pulumi.Output[str]
+    """
+    Name of the Google Cloud cluster.
+    """
+    kubeconfig: pulumi.Output[str]
+    """
+    kubeconfig for accessing the cluster.
+    """
+
+    def __init__(
+            self,
+            name: str,
+            args: AppImageArgs,
+            opts: Optional[pulumi.ResourceOptions] = None
+    ):
+
+        super().__init__('containerapps:index:AppImage', name, {}, opts)
+
+        registry = containerregistry.Registry(
+            f"{name}-registry",
+            resource_group_name=args.resource_group_name,
+            sku=containerregistry.SkuArgs(name="Basic"),
+            admin_user_enabled=True,
+            opts=pulumi.ResourceOptions(parent=self)
+        )
+
+        credentials = pulumi.Output.all(args.resource_group_name, registry.name).apply(
+            lambda args: containerregistry.list_registry_credentials(
+                resource_group_name=args[0], registry_name=args[1]
+            )
+        )
+        self.registry_login_server = registry.login_server
+        self.registry_username = credentials.username
+        self.registry_password = credentials.passwords[0]["value"]
+
+        image_name = args.app_path.split("/")[-1]
+        image_tag = args.image_tag or "latest"
+        image = docker_build.Image(f"{name}-myImage",
+            context={
+                "location": args.app_path,
+            },
+            push=True,
+            exec_=True,
+            tags=[registry.login_server.apply(lambda login_server: f"{login_server}/{image_name}:{image_tag}")],
+            platforms=[docker_build.Platform(args.platform)],
+            registries=[{
+                "address": self.registry_login_server,
+                "username": self.registry_username,
+                "password": self.registry_password,
+            }],
+            opts=pulumi.ResourceOptions(parent=self)
+        )
+        self.image_ref = image.ref
+
+        self.register_outputs({})

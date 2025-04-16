@@ -10,7 +10,7 @@ template:
       description: The Azure region to deploy into
       default: CentralUS
     insightsSku:
-      description: Operational Insights SKU (e.g. Free, Standard, Premisum, PerNode, PerGB2018)
+      description: Operational Insights SKU (e.g. Free, Standard, Premium, PerNode, PerGB2018)
       default: PerGB2018
     appIngressPort:
       description: Inbound TCP port for the container app.
@@ -71,13 +71,6 @@ resources:
       sku:
         name: "Basic"
       adminUserEnabled: true
-  # provider:
-  #   type: pulumi:providers:docker
-  #   properties:
-  #     registryAuth:
-  #       - address: ${registry.loginServer}
-  #         username: ${registryUsername}
-  #         password: ${registryPasswords[0].value}
   myImage:
     type: docker-build:Image
     properties:
