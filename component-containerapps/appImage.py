@@ -43,7 +43,7 @@ class AppImage(pulumi.ComponentResource):
         platform = args.get("platform") 
 
         registry = containerregistry.Registry(
-            f"{name}-registry",
+            f"{name}registry",
             resource_group_name=resource_group_name,
             sku=containerregistry.SkuArgs(name="Basic"),
             admin_user_enabled=True,
