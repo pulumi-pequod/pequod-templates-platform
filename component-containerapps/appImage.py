@@ -9,9 +9,9 @@ class AppImageArgs(TypedDict):
     """The resource group in which the image registry should be deployed."""
     app_path: pulumi.Input[str]
     """Path to the Dockerfile to build the app"""
-    image_tag: Optional[pulumi.Input[str]] = "latest" 
+    image_tag: Optional[pulumi.Input[str]] 
     """Optional: provided image tag to use. Default: latest"""
-    platform: Optional[pulumi.Input[str]] = "linux/amd64"
+    platform: Optional[pulumi.Input[str]]
     """Optional: The platform for the image. Default: linux/amd64"""
 
 class AppImage(pulumi.ComponentResource):
@@ -38,9 +38,9 @@ class AppImage(pulumi.ComponentResource):
 
         resource_group_name = args.get("resource_group_name")
         app_path = args.get("app_path")
-        image_tag = args.get("image_tag") 
+        image_tag = args.get("image_tag") or "latest"
         image_name = image_tag.split("/")[-1]
-        platform = args.get("platform") 
+        platform = args.get("platform") or "linux/amd64"
 
         registry = containerregistry.Registry(
             f"{name}registry",

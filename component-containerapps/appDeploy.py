@@ -15,9 +15,9 @@ class AppDeployArgs(TypedDict):
     """Password for container registry login."""
     image_ref: pulumi.Input[str]
     """Reference for the image in the container registry."""
-    insights_sku: Optional[pulumi.Input[str]] = "PerGB2018"
+    insights_sku: Optional[pulumi.Input[str]] 
     """Sku for the insights workspace. Default: PerGB2018"""
-    app_ingress_port: Optional[pulumi.Input[int]] = 80
+    app_ingress_port: Optional[pulumi.Input[int]] 
     """Ingress port for the app. Default: 80"""
 
 class AppDeploy(pulumi.ComponentResource):
@@ -41,8 +41,8 @@ class AppDeploy(pulumi.ComponentResource):
         registry_username = args.get("registry_username")
         registry_password = args.get("registry_password")
         image_ref = args.get("image_ref")
-        insights_sku = args.get("insights_sku")
-        app_ingress_port = args.get("app_ingress_port")
+        insights_sku = args.get("insights_sku") or "PerGB2018"
+        app_ingress_port = args.get("app_ingress_port") or 80
 
         workspace = operationalinsights.Workspace(
             "loganalytics",
