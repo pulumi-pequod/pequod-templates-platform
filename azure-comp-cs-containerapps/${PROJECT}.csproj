@@ -4,6 +4,8 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>   
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>  
     <DefaultItemExcludes>$(DefaultItemExcludes);app/*.cs</DefaultItemExcludes>
     <DefaultItemExcludes>$(DefaultItemExcludes);sdks/**/*.cs</DefaultItemExcludes>
   </PropertyGroup>
