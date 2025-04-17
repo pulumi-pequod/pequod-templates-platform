@@ -1,0 +1,49 @@
+name: ${PROJECT}
+description: ${DESCRIPTION}
+runtime: yaml
+packages:
+  stackmgmt: https://github.com/pulumi-pequod/component-stackmgmt@v0.1.7
+  containerapps: https://github.com/pulumi-pequod/pequod-templates-platform/component-containerapps@v1.0.0
+template:
+  description: YAML program that creates an Azure Container App and deploys a custom Docker image to it.
+  config:
+    azure-native:location: 
+      description: The Azure region to deploy into
+      default: CentralUS
+    insightsSku:
+      description: Operational Insights SKU (e.g. Free, Standard, Premium, PerNode, PerGB2018)
+      default: PerGB2018
+    appIngressPort:
+      description: Inbound TCP port for the container app.
+      default: 80
+    platform:
+      description: OS/architecture for the container app.
+      default: linux/amd64
+  
+resources:
+  resourceGroup:
+    type: azure-native:resources:ResourceGroup
+  
+  app:
+    type: containerapps:AppBuildDeploy
+    properties:
+      resourceGroupName: ${resourceGroup.name}
+      appPath: ./app
+      platform: ${platform}
+  
+  stacksettings:
+    type: stackmgmt:StackSettings
+
+outputs:
+  endpoint: https://${app.ContainerAppFqdn}
+
+config:
+  insightsSku:
+    type: string
+    default: PerGB2018
+  appIngressPort:
+    type: integer
+    default: 80
+  platform:
+    type: string
+    default: linux/amd64

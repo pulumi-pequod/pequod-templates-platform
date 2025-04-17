@@ -1,0 +1,4 @@
+environment:
+  - default/azure-access
+  - stackmgmt
+
