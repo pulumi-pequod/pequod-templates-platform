@@ -13,6 +13,10 @@ class AppBuildDeployArgs(TypedDict):
     """Optional: provided image tag to use. Default: latest"""
     platform: Optional[pulumi.Input[str]]
     """Optional: The platform for the image. Default: linux/amd64"""
+    insights_sku: Optional[pulumi.Input[str]] 
+    """Sku for the insights workspace. Default: PerGB2018"""
+    app_ingress_port: Optional[pulumi.Input[int]] 
+    """Ingress port for the app. Default: 80"""
 
 class AppBuildDeploy(pulumi.ComponentResource):
     """
@@ -35,6 +39,8 @@ class AppBuildDeploy(pulumi.ComponentResource):
         image_tag = args.get("image_tag") or "latest"
         image_name = image_tag.split("/")[-1]
         platform = args.get("platform") or "linux/amd64"
+        insights_sku = args.get("insights_sku") or "PerGB2018"
+        app_ingress_port = args.get("app_ingress_port") or 80
 
         image = AppImage(name, AppImageArgs(
             resource_group_name=resource_group_name,
@@ -49,7 +55,9 @@ class AppBuildDeploy(pulumi.ComponentResource):
             registry_login_server=image.registry_login_server,
             registry_username=image.registry_username,
             registry_password=image.registry_password,
-            image_ref=image.image_ref),
+            image_ref=image.image_ref,
+            insights_sku=insights_sku,
+            app_ingress_port=app_ingress_port),
             opts=pulumi.ResourceOptions(parent=self)
         )
 
