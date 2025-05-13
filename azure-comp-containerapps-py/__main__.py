@@ -14,7 +14,7 @@ app = AppBuildDeploy(
     "app",
     resource_group_name=resource_group.name,
     app_path="./app",
-    platform=platform
+    platform=platform,
     insights_sku=insights_sku,
     app_ingress_port=app_ingress_port,
 )
@@ -23,6 +23,5 @@ app = AppBuildDeploy(
 stack_settings = StackSettings("stacksettings")
 
 # Export the endpoint as an output
-pulumi.export("endpoint", f"https://{app.container_app_fqdn}")
-
+pulumi.export("endpoint", pulumi.Output.concat("https://", app.container_app_fqdn))
 
