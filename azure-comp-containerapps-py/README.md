@@ -1,4 +1,4 @@
-# Azure Container App Python
+# Azure Container App Simplified Python
 
 Deploys:
 - Resource Group
