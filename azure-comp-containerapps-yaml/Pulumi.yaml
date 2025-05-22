@@ -2,7 +2,7 @@ name: ${PROJECT}
 description: ${DESCRIPTION}
 runtime: yaml
 packages:
-  stackmgmt: https://github.com/pulumi-pequod/component-stackmgmt@v0.1.7
+  stackmgmt: https://github.com/pulumi-pequod/component-stackmgmt@v2.0.1
   containerapps: https://github.com/pulumi-pequod/component-containerapps@v1.3.0
 template:
   description: YAML program that leverages Components to create an Azure Container App and deploys a custom Docker image to it.

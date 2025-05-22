@@ -5,7 +5,7 @@ runtime:
   options:
     virtualenv: venv
 packages:
-  stackmgmt: https://github.com/pulumi-pequod/component-stackmgmt@v0.1.7
+  stackmgmt: https://github.com/pulumi-pequod/component-stackmgmt@v2.0.1
 template:
   description: Python program that creates an Azure Container App and deploys a custom Docker image to it.
   config:
