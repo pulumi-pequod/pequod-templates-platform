@@ -2,7 +2,7 @@ import pulumi
 from pulumi_azure_native import resources
 
 from pulumi_pequod_stackmgmt import StackSettings, StackSettingsArgs
-from pulumi_pequod_containerapps import AppBuildDeploy, AppBuildDeploy
+from pulumi_pequod_containerapps import AppBuildDeploy, AppBuildDeployArgs
 
 from config import insights_sku, app_ingress_port, platform
 
